@@ -3,6 +3,7 @@
     <output-path>$PROJECT_DIR$/out/artifacts/diplomka_app_jar</output-path>
     <root id="archive" name="diplomka-app.jar">
       <element id="module-output" name="diplomka-app" />
+      <element id="library" level="project" name="mysql:mysql-connector-java:5.1.40" />
     </root>
   </artifact>
 </component>
