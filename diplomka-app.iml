@@ -8,5 +8,7 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" exported="" name="mysql:mysql-connector-java:5.1.40" level="project" />
+    <orderEntry type="library" name="json-20200518" level="project" />
+    <orderEntry type="library" name="mongo-java-driver-3.12.7" level="project" />
   </component>
 </module>

@@ -4,6 +4,8 @@
     <root id="archive" name="diplomka-app.jar">
       <element id="module-output" name="diplomka-app" />
       <element id="library" level="project" name="mysql:mysql-connector-java:5.1.40" />
+      <element id="library" level="project" name="json-20200518" />
+      <element id="library" level="project" name="mongo-java-driver-3.12.7" />
     </root>
   </artifact>
 </component>

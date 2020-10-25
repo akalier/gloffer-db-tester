@@ -1,7 +1,17 @@
+import com.mongodb.DBObject;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.MongoClient;
+import com.mongodb.MongoCredential;
+import com.mongodb.util.JSON;
+import org.json.JSONObject;
+import org.bson.Document;
+
 import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Date;
 
 public class Program {
 
@@ -15,17 +25,9 @@ public class Program {
         try {
             Class.forName("com.mysql.jdbc.Driver");
             conn = DriverManager.getConnection(Variables.getConnString(), Variables.getUSERNAME(), Variables.getPASSWORD());
-            System.out.println("Connected");
+            System.out.println("Connected to MySQL");
 
-            List<String> tables = getAllTables(conn);
-            int limit = 10;
-            int counter = 0;
-            for (String table : tables) {
-                counter++;
-                exportDataCSV(conn, table, "D://diplomka/javadump/");
-                if (counter > limit) break;
-            }
-
+            exportFromMySQLToMongoDB(conn);
 
             //STEP 6: Clean-up environment
             //stmt.close();
@@ -38,76 +40,68 @@ public class Program {
     }
 
     //this approach does not work if we need to place the outfile on host machine (different than mysql server is running on)
-    public static void exportDataCSVOnServerMachine(Connection conn, String tableName, String filePath) {
-        System.out.println("Exporting table: " + tableName);
-        Statement stmt;
+    public static void exportFromMySQLToMongoDB(Connection conn) {
+        //Statement stmt;
         String query;
-        try {
-            stmt = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
-                    ResultSet.CONCUR_UPDATABLE);
+        int offset = 0;
 
-            //For comma separated file
-            query = "SELECT * into OUTFILE  '"+filePath+tableName+".csv" +
-                    "' FIELDS TERMINATED BY ',' FROM " + tableName + " t";
-            System.out.println("Executing query: " + query);
-            stmt.executeQuery(query);
+        MongoClient mongoClient = new MongoClient("localhost", 27017);
+        MongoDatabase database = mongoClient.getDatabase("diplomka");
+        MongoCollection<Document> collection = database.getCollection("gloffer_cache");
 
-        } catch(Exception e) {
-            e.printStackTrace();
-            stmt = null;
+        System.out.println("Connected to MongoDB");
+
+        Date currentDate = new Date();
+        System.out.println(currentDate.toString() + " - Starting...");
+
+        while (true) {
+            try {
+                Statement stmt = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
+                        ResultSet.CONCUR_UPDATABLE);
+
+                query = "SELECT cache as cache FROM " + Variables.getTableName() + " LIMIT " + Variables.getCOUNT() + " OFFSET " + offset;
+                //System.out.println(query);
+                offset += Variables.getCOUNT();
+                ResultSet rs = stmt.executeQuery(query);
+
+                if (!rs.first()) {
+                    break;
+                }
+
+                insertResultSetInMongo(rs, collection);
+
+                if (offset % 100000 == 0) {
+                    currentDate = new Date();
+                    System.out.println(currentDate.toString() + " - 100k");
+                }
+
+                stmt.close();
+
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    //this is not going to work either.
-    public static void exportDataCSV(Connection conn, String tableName, String filePath) {
-        System.out.println("Exporting table: " + tableName);
-        String completePath = filePath + tableName + ".csv";
-        String query = "SELECT * INTO OUTFILE '" + completePath + "' FIELDS TERMINATED BY ',' FROM " + tableName + " t";
-        String command = "mysql -h " + Variables.getServerIp() + " -u " + Variables.getUSERNAME() + " -p" + Variables.getPASSWORD() + " " + Variables.getDbName() + " -e \"" + query + "\" > " + completePath;
-        System.out.println(command);
-        try {
-            Process process = Runtime.getRuntime().exec(command);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    public static void insertResultSetInMongo(ResultSet rs, MongoCollection<Document> collection) {
+        while (true) {
+            try {
+                if (!rs.next()) break;
+                String cache = rs.getString("cache");
+                //System.out.println("Inserting: " + cache);
+                Document document = Document.parse(cache);
+                collection.insertOne(document);
 
-    }
-
-    //get all table names from schema
-    public static List<String> getAllTables(Connection conn) {
-        Statement stmt = null;
-        ArrayList<String> tables = new ArrayList<>();
-        try {
-            stmt = conn.createStatement();
-
-
-            //get all tables with 0 or more rows from information schema
-            String sql;
-            sql = "SELECT table_name, table_rows\n" +
-                    "    FROM INFORMATION_SCHEMA.TABLES\n" +
-                    "    WHERE TABLE_SCHEMA = 'gloffer' AND table_rows >= 0\n" +
-                    "    ORDER BY table_rows ASC;";
-            ResultSet rs = stmt.executeQuery(sql);
-
-            while (rs.next()) {
-                //Retrieve by column name
-                String table_name = rs.getString("table_name");
-                int table_rows = rs.getInt("table_rows");
-
-                //Display values
-                //System.out.print("table_name: " + table_name + ", rows: " + table_rows + "\n");
-
-                tables.add(table_name);
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
             }
 
-            rs.close();
-            stmt.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
+
         }
 
-        return tables;
+    };
 
-    }
+
 
 }
