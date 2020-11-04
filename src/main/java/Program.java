@@ -93,9 +93,12 @@ public class Program {
                 }
 
                 counter += Variables.getCOUNT();
-                //System.out.println("counter: " + counter);
-                //System.out.println("Inserting to mongo...");
+
+                //mongoDB
                 insertResultSetInMongo(rs, collection);
+
+                //elastic
+                insertResultSetInElastic(rs);
 
                 /*if (offset % 100000 == 0) {
                     currentDate = new Date();
@@ -148,6 +151,10 @@ public class Program {
 
 
     };
+
+    public static void insertResultSetInElastic(ResultSet rs) {
+
+    }
 
 
 
